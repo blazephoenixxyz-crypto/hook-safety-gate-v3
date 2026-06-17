@@ -1,66 +1,49 @@
-## Foundry
+# HookSafetyGate v3
 
-**Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**
+A standalone, default-closed admission gate for Uniswap v4 hook routing.
+Zero external dependencies. One line of integration.
 
-Foundry consists of:
+## What it does
 
-- **Forge**: Ethereum testing framework (like Truffle, Hardhat and DappTools).
-- **Cast**: Swiss army knife for interacting with EVM smart contracts, sending transactions and getting chain data.
-- **Anvil**: Local Ethereum node, akin to Ganache, Hardhat Network.
-- **Chisel**: Fast, utilitarian, and verbose solidity REPL.
+**Layer 1 — Delta-permission screen**
+Rejects hooks with BEFORE_SWAP_RETURNS_DELTA_FLAG or AFTER_SWAP_RETURNS_DELTA_FLAG via address bitmask. Pure arithmetic, unfakeable, constant time.
 
-## Documentation
+**Layer 2 — Default-closed allowlist**
+Nothing is routable unless explicitly admitted by the owner.
 
-https://book.getfoundry.sh/
+**Layer 3 — Codehash pinning**
+On admission, the hook's EXTCODEHASH is recorded. If the code changes after admission (proxy upgrade, selfdestruct-redeploy), the hook is automatically blocked automatically.
 
-## Usage
+## v3: Delta hook timelock path
 
-### Build
+Non-delta hooks are admitted immediately via allowHook().
 
-```shell
-$ forge build
-```
+Delta hooks (custom accounting) require a two-step, time-locked process:
 
-### Test
+1. proposeDeltaHook(hook) — records the codehash and starts the public review window
+2. confirmDeltaHook(hook) — callable only after deltaAdmissionDelay seconds
 
-```shell
-$ forge test
-```
+Bait-and-switch defense: if the hook's code changes between propose and confirm, confirmation reverts.
 
-### Format
+isRoutableDeltaHook(hook) lets integrators identify and handle delta hooks separately.
 
-```shell
-$ forge fmt
-```
+## Integration
 
-### Gas Snapshots
+One line in any v4 router or aggregator:
 
-```shell
-$ forge snapshot
-```
+    if (!IHookSafetyGate(GATE).isRoutableHook(address(key.hooks))) revert UnsafeHook();
 
-### Anvil
+Works on any EVM chain with Uniswap v4. Zero external dependencies.
 
-```shell
-$ anvil
-```
+## Tests
 
-### Deploy
+38 tests, 768 fuzz runs, 0 failures.
 
-```shell
-$ forge script script/Counter.s.sol:CounterScript --rpc-url <your_rpc_url> --private-key <your_private_key>
-```
+## Related
 
-### Cast
+- hook-safety-gate: v1 (Layer 1 + 2)
+- hook-safety-gate-v2: v2 (Layer 1 + 2 + 3)
 
-```shell
-$ cast <subcommand>
-```
+## License
 
-### Help
-
-```shell
-$ forge --help
-$ anvil --help
-$ cast --help
-```
+MIT
